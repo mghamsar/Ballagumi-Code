@@ -24,17 +24,6 @@ from datetime import datetime
 
 ################################################****************************###########################################
 
-class SmoothedValue(object):
-    def __init__(self, N=3):
-        self.history = [0]*N
-        self.historypos = 0
-        
-    def update(self, value):        
-        self.history[self.historypos] = value
-        self.historypos=(self.historypos+1)%len(self.history)
-                
-    def value(self):
-         return numpy.median(self.history)
 
 def modulo_sensorvalue(sensorval):
        sensorval = sensorval % 255
