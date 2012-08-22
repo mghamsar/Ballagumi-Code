@@ -1,18 +1,24 @@
 import sys, os
 import string
 import time
+import struct
+from struct import *
+import datetime
+from datetime import datetime
 import scipy
 from scipy import signal as sc
+from scipy.io.wavfile import read, write
 import numpy as np
+from multiprocessing import Process
+
+import pylab
+import math
+import csv
 
 import matplotlib
 matplotlib.use('Qt4Agg')
 matplotlib.use('MacOSX')
 matplotlib.rcParams['backend.qt4']='PySide'
-
-import pylab
-import math
-import csv
 
 import matplotlib.pyplot as plt
 #from matplotlib.pyplot import draw, show
@@ -20,19 +26,11 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 
-
 import PySide
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtWebKit import *
 from PySide.QtUiTools import *
-
-from multiprocessing import Process
-
-import struct
-from struct import *
-import datetime
-from datetime import datetime
 
 ################################################****************************###########################################
 
@@ -48,6 +46,7 @@ class mapperData():
       self.timestamps_seconds = []
       self.duration_seconds = []
       self.filename = ""
+      self.audio_filename = ""
 
     def changeToDuration(self):
 
@@ -78,6 +77,12 @@ class mapperData():
         if( (int(val) & (1<<(bits-1))) != 0 ):
           val = int(val) - (1<<bits)
         return val
+
+    def parseAudioData(self):
+
+      self.rate, self.audioInput = read(self.audio_filename)
+      print 'Sampling Rate', self.rate
+
 
     def parseData(self):
       
@@ -240,10 +245,12 @@ def main():
     app = QApplication(sys.argv)
     ex = SensorView()
 
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 3:
 
       ex.currentData.filename = sys.argv[1]
+      ex.currentData.audio_filename = sys.argv[2]
       ex.currentData.parseData()
+      ex.currentData.parseAudioData()
     
     else:
 
