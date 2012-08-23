@@ -11,26 +11,23 @@ from scipy.io.wavfile import read, write
 import numpy as np
 from multiprocessing import Process
 
-import pylab
-import math
-import csv
-
-import matplotlib
-matplotlib.use('Qt4Agg')
-matplotlib.use('MacOSX')
-matplotlib.rcParams['backend.qt4']='PySide'
-
-import matplotlib.pyplot as plt
-#from matplotlib.pyplot import draw, show
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib.font_manager import FontProperties
-
 import PySide
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtWebKit import *
 from PySide.QtUiTools import *
+
+import pylab
+import math
+import csv
+
+import matplotlib
+matplotlib.rcParams['backend.qt4']='PySide'
+
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from matplotlib.font_manager import FontProperties
+import matplotlib.pyplot as plt
 
 ################################################****************************###########################################
 
@@ -81,7 +78,16 @@ class mapperData():
     def parseAudioData(self):
 
       self.rate, self.audioInput = read(self.audio_filename)
-      print 'Sampling Rate', self.rate
+      #self.audioInput = fromfile(open(self.audio_filename),int16)
+
+      print 'Sampling Rate', self.rate, "   ", self.audioInput
+
+    def plotAudioData(self,subplot):
+
+      p2 = subplot.plot(np.arange(self.audioInput),np.array(self.audioInput))
+      subplot.set_xlabel('Time (Seconds)')
+      subplot.set_ylabel('Audio Data from Synthesizer')
+      subplot.grid(b=None,which='major')
 
 
     def parseData(self):
@@ -103,27 +109,30 @@ class mapperData():
           self.signal_values.append(float(line_sections[5]))
           self.timestamps_seconds.append(int(line_sections[0]))
 
+        # device_name = self.signal_names[0].split('/')
+        # device_name = device_name[1]
+        # print "Device Name", device_name
+
         self.changeToDuration()
-        print "Signal Lengths", len(self.signal_names), " ", len(self.signal_values), " ", len(self.timestamps_seconds), " ", len(self.duration_seconds)
 
         for i, sig in enumerate(self.signal_names):
 
-               current_name = self.signal_names[i]
-               current_val = self.signal_values[i]
-               current_time = self.duration_seconds[i]
+           current_name = self.signal_names[i]
+           current_val = self.signal_values[i]
+           current_time = self.duration_seconds[i]
 
-               # Modify the sensor data before feeding them to the dictionary
-               current_val = self.getTwosComp(current_val,8)
+           # Modify the sensor data before feeding them to the dictionary
+           current_val = self.getTwosComp(current_val,8)
 
-               if current_name not in self.signals:
-                      self.signals[current_name] = []
-                      self.signals[current_name].append(current_val)
+           if current_name not in self.signals:
+                  self.signals[current_name] = []
+                  self.signals[current_name].append(current_val)
 
-                      self.times[current_name] = []
-                      self.times[current_name].append(current_time)
-               else:
-                      self.signals[current_name].append(current_val)
-                      self.times[current_name].append(current_time)
+                  self.times[current_name] = []
+                  self.times[current_name].append(current_time)
+           else:
+                  self.signals[current_name].append(current_val)
+                  self.times[current_name].append(current_time)
       else: 
         print "Exception, Filename Not Available"
       
@@ -172,7 +181,6 @@ class mapperData():
             print 'Found Key', key, 'Matching Signal Name', signalname
             p1 = subplot.plot(self.times[key],self.signals[key])
             plot_name = "Plot for Signal: " + str(signalname)
-            #ylim(min(self.signals[key])-10,max(self.signals[key])+10)
             subplot.set_xlabel('Time (Seconds)')
             subplot.set_ylabel('Audio Data from Synth')
             subplot.grid(b=None,which='major')
@@ -208,14 +216,32 @@ class SensorView(QWidget):
     def initUI(self):
 
       self.button = QPushButton("Display Plots")
-      self.button.setGeometry(10,10,300,30)
+      self.button.setGeometry(10,50,400,30)
       self.button.setParent(self)
       self.button.clicked.connect(self.plotQSignal)
 
+      self.signalComboBox = QComboBox()
+      self.signalComboBox.setGeometry(10,10,400,30)
+      self.signalComboBox.setParent(self)
+      self.signalComboBox.activated.connect(self.getSignalName)
+
       # self.setLayout(hbox)
-      self.setGeometry(500,300,350,350)
+      self.setGeometry(500,300,450,350)
       self.setWindowTitle('Ballagumi Data Sync')
       self.show()
+    
+    def fillQBox(self): 
+    # Add all the signal names from the device to the combobox
+      if dict(self.currentData.signals):
+        for name in self.currentData.signals.iterkeys():
+          #print name
+          self.signalComboBox.addItem(name)
+      else:
+        print "Empty Signals Dictionary"
+
+    def getSignalName(self):
+      print 'Selected Sensor Signal', self.signalComboBox.currentText()
+      self.current_signal = self.signalComboBox.currentText()
 
     def plotQSignal(self):
 
@@ -227,11 +253,12 @@ class SensorView(QWidget):
 
       # subplot 1 - Audio Data Stream
       ax1 = fig.add_subplot(211)
-      self.currentData.plot_sensorsignal(ax1,'/ContinuousAndConstantForBallagumi.1/CACOUT1')
+      self.currentData.plot_sensorsignal(ax1,self.current_signal)
 
       # subplot 2 - Sensor Data Stream
       ax2 = fig.add_subplot(212)
-      self.currentData.plot_allsensorsignals(ax2)
+      #self.currentData.plotAudioData(ax2)
+      #self.currentData.plot_allsensorsignals(ax2)
       
       self.canvas = FigureCanvas(fig)
 
@@ -252,11 +279,18 @@ def main():
       ex.currentData.parseData()
       ex.currentData.parseAudioData()
     
+    elif len(sys.argv) == 2:
+      
+      ex.currentData.filename = sys.argv[1]
+      ex.currentData.parseData()
+      #ex.currentData.audioInput = [0,1]
+
     else:
 
       print "Error, mapperRec File Not Included"
       sys.exit()
 
+    ex.fillQBox()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
