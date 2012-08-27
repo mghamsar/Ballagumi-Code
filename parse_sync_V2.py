@@ -58,7 +58,7 @@ class mapperData():
       times_utc = {}
       t = datetime.datetime(1900, 1, 1)
 
-      for key, value in times.iteritems():
+      for key, value in self.times.iteritems():
             if key not in times_utc: 
                    times_utc[key]=[]
 
@@ -84,7 +84,8 @@ class mapperData():
 
     def plotAudioData(self,subplot):
 
-      p2 = subplot.plot(np.arange(self.audioInput),np.array(self.audioInput))
+      p2_x = np.arange(0,len(self.audioInput))
+      p2 = subplot.plot(p2_x,self.audioInput)
       subplot.set_xlabel('Time (Seconds)')
       subplot.set_ylabel('Audio Data from Synthesizer')
       subplot.grid(b=None,which='major')
@@ -257,7 +258,7 @@ class SensorView(QWidget):
 
       # subplot 2 - Sensor Data Stream
       ax2 = fig.add_subplot(212)
-      #self.currentData.plotAudioData(ax2)
+      self.currentData.plotAudioData(ax2)
       #self.currentData.plot_allsensorsignals(ax2)
       
       self.canvas = FigureCanvas(fig)
@@ -283,7 +284,8 @@ def main():
       
       ex.currentData.filename = sys.argv[1]
       ex.currentData.parseData()
-      #ex.currentData.audioInput = [0,1]
+      ex.currentData.audioInput = [0,1]
+      #ex.currentData.parseAudioData()
 
     else:
 
