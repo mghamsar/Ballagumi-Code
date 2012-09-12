@@ -80,7 +80,7 @@ class mapperData():
       self.rate, self.audioInput = read(self.audio_filename)
       #self.audioInput = fromfile(open(self.audio_filename),int16)
 
-      print 'Sampling Rate', self.rate, "   ", self.audioInput
+      print 'Sampling Rate', self.rate, "   "#, self.audioInput
 
     def plotAudioData(self,subplot):
 
@@ -109,10 +109,6 @@ class mapperData():
           self.signal_names.append(line_sections[2])
           self.signal_values.append(float(line_sections[5]))
           self.timestamps_seconds.append(int(line_sections[0]))
-
-        # device_name = self.signal_names[0].split('/')
-        # device_name = device_name[1]
-        # print "Device Name", device_name
 
         self.changeToDuration()
 
