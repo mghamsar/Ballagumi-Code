@@ -77,19 +77,31 @@ class mapperData():
 
     def parseAudioData(self):
 
-      self.rate, self.audioInput = read(self.audio_filename)
-      #self.audioInput = fromfile(open(self.audio_filename),int16)
-
-      print 'Sampling Rate', self.rate, "   "#, self.audioInput
+      self.sampling_rate, self.audioInput = read(self.audio_filename)
+      print 'Sampling Rate', self.sampling_rate, "   "#, self.audioInput
 
     def plotAudioData(self,subplot):
 
+      #self.audioInput_ds = scipy.signal.decimate(self.audioInput,10,n=8,ftype='fir',axis=-1)
+
+      #obtain x-axis
       p2_x = np.arange(0,len(self.audioInput))
-      p2 = subplot.plot(p2_x,self.audioInput)
+
+      # decimate signal manually for plotting 
+      p2_audioInput_ds = []
+      p2_x_ds = []
+      for i in range(0, len(self.audioInput), 20):
+
+        p2_audioInput_ds.append(self.audioInput[i])
+        p2_x_ds.append(p2_x[i]/self.sampling_rate)
+        #print "decimating audio input", 
+        #print "audio input length", len(self.audioInput), "decimated input length", len(p2_audioInput_ds), "  ", len(p2_x_ds)
+
+      p2 = subplot.plot(p2_x_ds,p2_audioInput_ds)
       subplot.set_xlabel('Time (Seconds)')
       subplot.set_ylabel('Audio Data from Synthesizer')
       subplot.grid(b=None,which='major')
-
+      title("Sensor vs. Audio Signal - Ballagumi")
 
     def parseData(self):
       
