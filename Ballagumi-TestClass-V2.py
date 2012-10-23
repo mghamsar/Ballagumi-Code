@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 def main_loop():
     for b_num in open_list:
         try:
-            b_array[b_num].get_serial_data()            
+            b_array[b_num].get_serial_data()       
             b_array[b_num].update_mapper_signals()
             b_array[b_num].smooth_mapper_signal()
         except Exception, e:
@@ -88,7 +88,6 @@ def Fung_GUI(q,on_list):
         update_plot(tplot,smooth_data,Num_Sigs)
         root.after(100, plottimer) #update the plot every 100 ms
         
-    #################################################
     
     #DRAW CANVAS
     tplot=draw_canvas()
@@ -96,11 +95,11 @@ def Fung_GUI(q,on_list):
     #Text Box
     tbox=Tkinter.Entry(root)
     tbox.pack()
-    
+
     #Quit Button
     quit_button = Tkinter.Button(root, text="Quit", command=lambda: onquit())
     quit_button.pack()
-    
+
     #Board Buttons
     command_button={}
     for bd_num in on_list:
@@ -110,11 +109,14 @@ def Fung_GUI(q,on_list):
         command_button[bd_num] = Tkinter.Button(root, text=txt_str,command=tc(bd_num))
         command_button[bd_num].pack()
         print ("command button" ,command_button)
-    
+
     ontimer()
-    plottimer()
+    #plottimer()
     root.mainloop()
-    
+
+
+#################################################
+
 #Open Serial Port to Read Data
 OS = os.name
 if os.name == 'nt':
@@ -126,6 +128,7 @@ from fungible_board_class import Fungible_Node
 print 'Fungible Node',Fungible_Node
 
 m_inst= mapper.device("Fungible1", 9000)
+print "MAPPER DEVICE", m_inst
 b_array={}
 b_num=0
 b_list=[0,1,2]
@@ -150,7 +153,6 @@ def cleanup():
 
 try:
     q = Queue()
-    #print q
 except:
     print ("Queue couldn't open")
 
