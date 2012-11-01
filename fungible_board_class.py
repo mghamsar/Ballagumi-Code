@@ -182,66 +182,64 @@ class SmoothedValue(object):
 
 class Fungible_Node:
   
-    def __init__(self,port_num,baud,t_out, m_inst):
-        self.quit=0
-        #print "Starting Fungible Initialization"
+    def __init__(self,port_num,baud,t_out,m_inst):
+        self.quit = 0
         try:
             self.OS = os.name   
             self.ser = 0
-            self.inBuffer=""
-            self.port_num=port_num
+            self.inBuffer = ""
+            self.port_num = port_num
             print self.port_num
-            self.baud=baud
+            self.baud = baud
             print self.baud
             self.t_out=t_out
             print self.t_out
             self.open_connection()
             print ("Connection opened",self.ser)
-            self.temp_buff=""
-            self.addr=0
-            #print ("Try to get i2c addr")
-            while (self.addr<1):
+            self.temp_buff = ""
+            self.addr = 0
+            
+            while (self.addr < 1):
                 self.get_i2c_address()
                 
-            print ("I2C_address:",self.addr)
-            self.pairs={}
-            item_num=0
-            self.number_of_sigs=0
-            self.sig_names={}
-            self.info_index={}
-            self.state=0
-            #print ("Try to get signal info")  
+            print ("I2C_address:", self.addr)
+            self.pairs = {}
+            item_num = 0
+            self.number_of_sigs = 0
+            self.sig_names = {}
+            self.info_index = {}
+            self.state = 0
             while (len(self.sig_names)<1):
                 self.get_signal_info()
                 time.sleep(1)
             
-            print("Serial signal names attained: ",self.sig_names)
-            self.serial_sigs={}
-            
+            self.serial_sigs = {}
             self.smoothed_sigs = []
+
             for i in range(64):
                 self.smoothed_sigs.append(SmoothedValue(5))
           
             self.sig_medians = [0] * 64
-            self.old_s_sigs={}
-            self.mapper_sigs={}
+            self.old_s_sigs = {}
+            self.mapper_sigs = {}
        
             self.create_mapper_signals(m_inst)
             self.s_write("Sc 5\r")
             time.sleep(1)
             
+            self.s_write("PHT\r")
             self.s_write("!e\r")
-            #self.s_read(100)
-            #print ("Try to get all serial data")
-            while (len(self.serial_sigs)<self.number_of_sigs):
+            
+            while (len(self.serial_sigs) < self.number_of_sigs):
                 self.s_write("!e\r")
                 self.get_serial_data()
                 time.sleep(1)
                 
             print ("Got all serial data")
-            self.old_s_sigs=self.serial_sigs.copy()
+            self.old_s_sigs = self.serial_sigs.copy()
             self.update_mapper_signals()
-            self.poll(m_inst)   
+            self.poll(m_inst)
+
         except:
             print ("Funginble Node initialization failed!")
             self.close_nicely()
@@ -260,33 +258,35 @@ class Fungible_Node:
         except:
             print ("Could not write to port:", self.port_num)
     
-    def s_read(self,num_lines):
+    def s_read(self):
         try:
             
-            if((self.ser.inWaiting()>0)):
-                
-                self.inBuffer=self.ser.read(int(self.ser.inWaiting()))
-                self.inBuffer=self.temp_buff+self.inBuffer
-                self.temp_buff=""
-                buff_length=len(self.inBuffer)
-                d_indx=self.inBuffer.rfind("\n")
-                if (d_indx>-1): #there is a carriage return
+            if((self.ser.inWaiting() > 0)):
+                #print "Number of Bytes in Serial Buffer", self.ser.inWaiting()
+                self.inBuffer = self.ser.read(int(self.ser.inWaiting()))
+
+                self.inBuffer = self.temp_buff + self.inBuffer
+                self.temp_buff = ""
+                buff_length = len(self.inBuffer)
+
+                d_indx = self.inBuffer.rfind("\n")
+
+                if (d_indx > -1): #there is a carriage return
+                    
                     try:
-                        self.temp_buff=self.inBuffer[d_indx+1:buff_length-1]
+                        self.temp_buff = self.inBuffer[d_indx+1:buff_length-1]
                     except:
                         pass
-                    self.inBuffer=self.inBuffer[0:d_indx]
-                    self.inBuffer=self.inBuffer.split("\n")
+                    self.inBuffer = self.inBuffer[0:d_indx]
+                    self.inBuffer = self.inBuffer.split("\n")
                     
                 else: #no carriage return, store partial buffer
-                    self.temp_buff=self.inBuffer
-                    self.inBuffer=""
-         
+                    self.temp_buff = self.inBuffer
+                    self.inBuffer = ""
                 return self.inBuffer
-            #output_buff=self.ser.readlines(num_lines)
-            #return output_buff
+
             else:
-#                print("nothing in serial buffer")
+                print("nothing in serial buffer")
                 return ""
         except Exception, e:
             print ("Could not read from port:", self.port_num, "message", e)
@@ -295,8 +295,7 @@ class Fungible_Node:
     def close_nicely(self):
         self.quit=1
         self.close_connection()
-#        self.close_thread()
-            
+         
     
     def open_connection(self):
         try:
@@ -310,18 +309,26 @@ class Fungible_Node:
         self.ser.flushInput()
         time.sleep(1)
         self.s_write("SI 0\r")
-        s = self.s_read(200)
+        s = self.s_read()
         try:
             if len(s)>1:
                 for word in s:
                     if ("I2C Slave Address:" in word):
-                        address = word.split("I2C Slave Address:")
-                        self.addr=int(address[1])
-                        return self.addr
+                      address = word.split("I2C Slave Address:")
+                      self.addr = int(address[1])
         except:                        
-            self.addr=0
+            self.addr = 0
             print ("I2C address not found")
-            return self.addr
+
+        # Check to see if the address exists in the elements
+        try: 
+          for element in sensorinfo: 
+            if self.addr == element[0]:
+              return self.addr
+
+        except:
+          self.addr = 0
+          print "I2C address not in saved board range"
     
     def get_signal_info(self):     
             self.s_write("!d\r") 
@@ -332,32 +339,32 @@ class Fungible_Node:
             time.sleep(1)
             self.ser.flushInput()
             #self.s_write("SbL 0S2 1S2 2S2 3S2 4S2 5S2 0D2 \r")
+            #self.s_write("SbL 0S2 1S2 \r")
             self.s_write("Sbc \r")
             
             time.sleep(1)
-            s = self.s_read(200)
-            print "number of lines:"
-            print (len(s))
-            print "content"
-            print (s)
+            s = self.s_read()
+            print "number of lines:" , len(s)
+            print "content", s
             item_num=0
 
             if len(s)>1:
                 for word in s:
                     if (word.find("Length of List of Printed signals:") != -1):
-                        num_sig=word.split('Length of List of Printed signals:')
-                        #print "Number of Sigs obtained", num_sig[1]
+                        num_sig = word.split('Length of List of Printed signals:')
                         self.number_of_sigs = int(num_sig[1])
+                        #print "Number of Sigs obtained", num_sig[1], self.number_of_sigs
                             
                     elif (word.find("List of Printed signals:")!=-1):
-                        substr=word.split(':')
-                        lnames=substr[1].split()
-                        print ("lnames " ,lnames)
+                        substr = word.split(':')
+                        lnames = substr[1].split()
+                        #print ("lnames " ,lnames)
                         for item in lnames:
-                            sub_item=item.split()
-                            self.pairs[item_num]=sub_item[0]
-                            item_num=item_num+1
-                        item_num=0
+                            sub_item = item.split()
+                            self.pairs[item_num] = sub_item[0]
+                            item_num = item_num + 1
+
+                        item_num = 0
                         for item_num in self.pairs.keys():
                             list_num=0
                             for element in sensorinfo:
@@ -367,7 +374,8 @@ class Fungible_Node:
                                     # allboards creates the mapper signal name and is also used to index information from sensorinfo
                                     self.info_index[item_num]=list_num
                                     #info_index directly gives the row number (index) of the (board_number, signal_number) pair from sensorinfo
-                                list_num=list_num+1
+                                list_num = list_num + 1
+                        #print "Signals Matched with Mapper Names (sensorinfo)", self.pairs.values()
 
     
     def update_mapper_signals(self):
@@ -405,57 +413,44 @@ class Fungible_Node:
             print "Created Mapper Signals", self.sig_names[sig] 
     
     def get_serial_data(self):
-            
-        machine = { (0, 8): 1,
-                    (1, 8): 2,
-                    (2, 8): 3,
-                    (3, 8): 4,
-                    (4, 0): 0}
 
-        lines=self.s_read(50)
+        lines = self.s_read()
+        self.old_s_sigs = self.serial_sigs.copy()
+        s_old_timestamp = 0
 
-
-        self.old_s_sigs=self.serial_sigs.copy()
         for s in lines:
-            data = s.split()
-            #print "Data Coming In", data                
-            L = len(data)
+            print repr(s)
+            s2 = s.split("}}")
+            s_timestamp_and_data = s2[0].split("{{")
 
-            self.state = machine.get((self.state, L), 0) #Set the Default state machine to 0 - doing nothing until we get to state 1
-            
-            for i in range(8):
-                if self.state==1 and L==8:
-                    try:
-                        self.serial_sigs[i]=(int(data[i]))
+            if len(s_timestamp_and_data) > 1:              
+              #print "Data Coming In With TimeStamp", s_timestamp_and_data
+              #print "Length of Data", len(s_timestamp_and_data)
 
-                    except:
-                        print ("Signal is beyond range (not evenly divisible by 8)")
-                    #mapper_signals[active_board][i].update(int(data[i]))
+              if "PSOC" not in s_timestamp_and_data[0]: 
+                s_timestamp = s_timestamp_and_data[0]
+                s_old_timestamp = s_timestamp
 
-                if self.state==2 and L==8:
-                    try: 
-                        #print ("getting signalin state 2")
-                        self.serial_sigs[i+8]=int(data[i])
-                       # print ("sigs 2", self.serial_sigs[i+8])
-                    except:
-                        print ("Signal is beyond range (not evenly divisible by 8)")
-                   # mapper_signals[active_board][i+8].update(int(data[i]))
-                
-                if self.state==3 and L==8:
-                    try: 
-                        self.serial_sigs[i+16]=int(data[i])
-                    except:
-                        print ("Signal is beyond range (not evenly divisible by 8)")
-                   # mapper_signals[active_board][i+16].update(int(data[i]))
-        
-                if self.state==4 and L==8:
-                    try: 
-                        self.serial_sigs[i+24]=int(data[i])
-                    except:
-                        print ("Signal is beyond range (not evenly divisible by 8)")
-                   # mapper_signals[active_board][i+24].update(int(data[i]))
-        #return state       
-    
+              else:
+                s_timestamp = s_old_timestamp
+              
+              s_data = s_timestamp_and_data[1]
+              
+              data = s_data.split()
+              L = len(data)
+
+              #print "TimeStamp", s_timestamp, "\r"
+              #print "Data", s_data, "\r"
+
+              for i, d in enumerate(data):
+                #print d
+                try: 
+                  self.serial_sigs[i] = int(d)
+
+                except:
+                  print "Signal is beyond range of 64"
+
+              print "Serial Sigs", self.serial_sigs
     def f(self,q):
         import Tkinter
         def tcall():
