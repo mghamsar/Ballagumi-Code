@@ -6,6 +6,7 @@ import string
 import time
 import scipy
 import numpy
+import re
         
 from multiprocessing import Process, Queue
 from threading import Thread
@@ -296,7 +297,6 @@ class Fungible_Node:
         self.quit=1
         self.close_connection()
          
-    
     def open_connection(self):
         try:
             self.ser = serial.Serial(self.port_num,self.baud,timeout=1)
@@ -377,7 +377,6 @@ class Fungible_Node:
                                 list_num = list_num + 1
                         #print "Signals Matched with Mapper Names (sensorinfo)", self.pairs.values()
 
-    
     def update_mapper_signals(self):
         for sig_num in range(self.number_of_sigs):
             # Only update data if it has a new value
@@ -419,48 +418,50 @@ class Fungible_Node:
         s_old_timestamp = 0
 
         for s in lines:
-            print repr(s)
-            s2 = s.split("}}")
-            s_timestamp_and_data = s2[0].split("{{")
+            s2 = s.split("{{")
+            print repr(s2)
 
-            if len(s_timestamp_and_data) > 1:              
-              #print "Data Coming In With TimeStamp", s_timestamp_and_data
-              #print "Length of Data", len(s_timestamp_and_data)
+            if len(s2) > 1:
+              del s2[0]
 
-              if "PSOC" not in s_timestamp_and_data[0]: 
-                s_timestamp = s_timestamp_and_data[0]
-                s_old_timestamp = s_timestamp
+              for td in s2[1]:
+                if re.match("[0-9A-Fa-f]",td):
+                  print td
 
-              else:
-                s_timestamp = s_old_timestamp
-              
-              s_data = s_timestamp_and_data[1]
-              
-              data = s_data.split()
-              L = len(data)
+                # s_timestamp_and_data = td.split("}}<<")
+                # print repr(s_timestamp_and_data), '\r'
 
-              #print "TimeStamp", s_timestamp, "\r"
-              #print "Data", s_data, "\r"
+                # if len(s_timestamp_and_data) == 2: 
 
-              for i, d in enumerate(data):
-                #print d
-                try: 
-                  self.serial_sigs[i] = int(d)
+                #   s_timestamp = s_timestamp_and_data[0]
+                #   s_data = s_timestamp_and_data[1]
 
-                except:
-                  print "Signal is beyond range of 64"
+                #   print "Data Coming In With TimeStamp", s_timestamp_and_data
+                #   print "Length of Data", len(s_timestamp_and_data)
 
-              print "Serial Sigs", self.serial_sigs
+                #   data = s_data.split()
+                #   L = len(data)
+
+                #   #print "TimeStamp", s_timestamp, "\r"
+                #   #print "Data", s_data, "\r"
+
+                #   for i, d in enumerate(data):
+                #     try: 
+                #       self.serial_sigs[i] = int(d)
+
+                #     except:
+                #       print "Signal is beyond range of 64"
+
+                #print "Serial Sigs", self.serial_sigs
     def f(self,q):
         import Tkinter
         def tcall():
-                    temp_str=tbox.get()
+                    temp_str = tbox.get()
                     q.put(temp_str)
             
         def onquit():
                     q.put("quit")
                     root.quit()
-            
-
+  
     def poll(self,m_inst):
             m_inst.poll(0)
