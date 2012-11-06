@@ -186,16 +186,19 @@ class Fungible_Node:
   
     def __init__(self,port_num,baud,t_out,m_inst):
         self.quit = 0
+        self.ser = 0
+        self.inBuffer = ""
+
+        self.lines_from_serial = []
+
         try:
             self.OS = os.name   
-            self.ser = 0
-            self.inBuffer = ""
             self.port_num = port_num
-            print self.port_num
             self.baud = baud
-            print self.baud
-            self.t_out=t_out
-            print self.t_out
+            self.t_out = t_out
+
+            print self.port_num, "", self.baud, "", self.t_out
+
             self.open_connection()
             print ("Connection opened",self.ser)
             self.temp_buff = ""
@@ -230,12 +233,16 @@ class Fungible_Node:
             time.sleep(1)
             
             self.s_write("PHT\r")
+            
+
+            self.s_write("!e\r")
             self.s_write("!e\r")
             
             while (len(self.serial_sigs) < self.number_of_sigs):
-                self.s_write("!e\r")
-                self.get_serial_data()
-                time.sleep(1)
+              print "waiting in while"
+              self.s_write('!e\r')
+              self.get_serial_data()
+              time.sleep(1)
                 
             print ("Got all serial data")
             self.old_s_sigs = self.serial_sigs.copy()
@@ -249,7 +256,7 @@ class Fungible_Node:
     
     def close_connection(self):
         try:
-            self.s_write("!d\r")
+            #self.s_write("!d\r")
             self.ser.close()
         except:
             print ("Could not close port: ", self.port_num)
@@ -264,17 +271,14 @@ class Fungible_Node:
         try:
             
             if((self.ser.inWaiting() > 0)):
-                #print "Number of Bytes in Serial Buffer", self.ser.inWaiting()
                 self.inBuffer = self.ser.read(int(self.ser.inWaiting()))
-
                 self.inBuffer = self.temp_buff + self.inBuffer
+
                 self.temp_buff = ""
                 buff_length = len(self.inBuffer)
-
                 d_indx = self.inBuffer.rfind("\n")
 
                 if (d_indx > -1): #there is a carriage return
-                    
                     try:
                         self.temp_buff = self.inBuffer[d_indx+1:buff_length-1]
                     except:
@@ -285,11 +289,43 @@ class Fungible_Node:
                 else: #no carriage return, store partial buffer
                     self.temp_buff = self.inBuffer
                     self.inBuffer = ""
+
                 return self.inBuffer
 
             else:
-                #print("nothing in serial buffer")
                 return ""
+        except Exception, e:
+            print ("Could not read from port:", self.port_num, "message", e)
+            raise
+
+    def s_read_data(self):
+        try:     
+          
+          if self.ser.inWaiting() > 0:
+            
+            self.inBuffer = self.ser.read(int(self.ser.inWaiting()))
+            buff_length = len(self.inBuffer)
+
+            regxmatch = re.search("{{[\x00-\xFF]{1,32}}}(<<[\x00-\xFF]{2}>>)?",self.inBuffer)
+
+            if regxmatch:
+              r2 = regxmatch.group()
+              #print "r2", r2
+
+              if len(r2) > 1: 
+                r2 = r2[2:len(r2)-2]
+                r3 = map(ord,r2)
+                #print "r3", r3
+
+                self.ser.flushInput()
+                self.inBuffer = ""
+                
+                return r3
+            
+          else:
+            #print("nothing in serial buffer")
+            return ""
+        
         except Exception, e:
             print ("Could not read from port:", self.port_num, "message", e)
             raise
@@ -306,7 +342,7 @@ class Fungible_Node:
             print ("Could not open port: " , self.port_num)
     
     def get_i2c_address(self):
-        self.s_write("!d\r")
+        #self.s_write("!d\r")
         self.ser.flushInput()
         time.sleep(1)
         self.s_write("SI 0\r")
@@ -332,7 +368,7 @@ class Fungible_Node:
           print "I2C address not in saved board range"
     
     def get_signal_info(self):     
-            self.s_write("!d\r") 
+            #self.s_write("!d\r") 
             self.s_write("Sc 5\r")
             time.sleep(1)
             self.s_write("SSR\r")
@@ -346,15 +382,16 @@ class Fungible_Node:
             time.sleep(1)
             s = self.s_read()
             print "number of lines:" , len(s)
-            print "content", s
-            item_num=0
+            print "content", repr(s) 
+
+            item_num = 0
 
             if len(s)>1:
                 for word in s:
                     if (word.find("Length of List of Printed signals:") != -1):
                         num_sig = word.split('Length of List of Printed signals:')
                         self.number_of_sigs = int(num_sig[1])
-                        #print "Number of Sigs obtained", num_sig[1], self.number_of_sigs
+                        print "Number of Sigs obtained", num_sig[1], self.number_of_sigs
                             
                     elif (word.find("List of Printed signals:")!=-1):
                         substr = word.split(':')
@@ -371,7 +408,7 @@ class Fungible_Node:
                             for element in sensorinfo:
                                 if ((self.pairs[item_num] in element[1]) & (self.addr == element[0])):
                                     #print (item_num,"index gives",element[2] ,element[3], element[4])
-                                    self.sig_names[item_num]=str(element[0]) +'/'+ element[2] + '/' + element[3] +'/'+ element[4]
+                                    self.sig_names[item_num] = str(element[0]) +'/'+ element[2] + '/' + element[3] +'/'+ element[4]
                                     # allboards creates the mapper signal name and is also used to index information from sensorinfo
                                     self.info_index[item_num]=list_num
                                     #info_index directly gives the row number (index) of the (board_number, signal_number) pair from sensorinfo
@@ -380,7 +417,7 @@ class Fungible_Node:
 
     def update_mapper_signals(self):
         for sig_num in range(self.number_of_sigs):
-            # Only update data if it has a new value
+            #Only update data if it has a new value
             if (self.serial_sigs[sig_num] == self.old_s_sigs[sig_num]): 
               continue
             else:
@@ -405,42 +442,30 @@ class Fungible_Node:
         
         for sig in self.sig_names.keys():
             if  (sensorinfo[self.info_index[sig]][1][1]=='D'):
-                max_size=255.0
+                max_size = 255.0
             elif (sensorinfo[self.info_index[sig]][1][1]=='S'):
-                max_size=128.0
+                max_size = 128.0
 
             self.mapper_sigs[sig] = m_inst.add_output(self.sig_names[sig],1,'i',"Volts",0.01,max_size)
             print "Created Mapper Signals", self.sig_names[sig] 
     
     def get_serial_data(self):
 
-        lines = self.s_read()
+      try:
         self.old_s_sigs = self.serial_sigs.copy()
-        s_old_timestamp = 0
+        lines = self.s_read_data()
+        
+        if isinstance(lines,list): 
+          print " Incoming Data", lines
+          #print "length of incoming data", len(lines)
 
-        for s in lines:
-            s2 = s.split("{{")
-            #print repr(s2)
-            print "Length of Incoming Data Batches", len(s2)
+          for i in range(len(lines)):
+            self.serial_sigs[i] = int(lines[i])
 
-            if len(s2) > 2:
-              del s2[0]
+          #print "Items in Serial Sigs", self.serial_sigs.values()
 
-              for td in s2:
-                if "}}" in td:
-                  s_timestamp_and_data = td.split("}}")
-
-                  s_data = s_timestamp_and_data[0]
-                  s_timestamp = s_timestamp_and_data[1]
-                  
-                  #print repr(s_data)
-                  #print "Length of each string", len(s_data)
-                  s3_data = map(ord,s_data)
-                  print s3_data
-
-                  for i in range(16): 
-                    #print s3_data[i]
-                    self.serial_sigs[i] = int(s3_data[i])
+      except:
+        print "didn't get serial sigs"
 
     def f(self,q):
         import Tkinter
@@ -453,4 +478,4 @@ class Fungible_Node:
             root.quit()
   
     def poll(self,m_inst):
-            m_inst.poll(0)
+        m_inst.poll(0)

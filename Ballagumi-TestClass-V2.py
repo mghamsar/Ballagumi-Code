@@ -14,15 +14,15 @@ def main_loop():
         try:
             b_array[b_num].get_serial_data()       
             b_array[b_num].update_mapper_signals()
-            b_array[b_num].smooth_mapper_signal()
+            #b_array[b_num].smooth_mapper_signal()
         except Exception, e:
             traceback.print_exc()
     try:
-        m_inst.poll(0)
-        queue_list=q.get_nowait()
+        m_device.poll(0)
+        queue_list = q.get_nowait()
         print ("queue list: ", queue_list)
         if queue_list=="quit":
-            still_alive=0
+            still_alive = 0
             return
         else:
             if (queue_list[0] in open_list):
@@ -127,15 +127,17 @@ elif os.name == 'posix':
 from fungible_board_class import Fungible_Node
 print 'Fungible Node',Fungible_Node
 
-m_inst= mapper.device("Fungible1", 9000)
-print "MAPPER DEVICE", m_inst
-b_array={}
-b_num=0
-b_list=[0,1,2]
+m_device = mapper.device("Fungible1", 9000)
+print "MAPPER DEVICE", m_device
+
+b_array = {}
+b_num = 0
+#b_list=[0,1,2]
+b_list = [2]
 open_list=[]
 for b_num in b_list:
     try:
-        b_array[b_num]=Fungible_Node(port_list[b_num],115200,0.3,m_inst)
+        b_array[b_num]=Fungible_Node(port_list[b_num],115200,0.3,m_device)
         open_list.append(b_num)
         Num_Sigs = b_array[b_num].get_number_of_signals()
         
@@ -158,7 +160,7 @@ except:
 
 try:    
     Fung_GUI(q,open_list)
-    cleanup()
+    #cleanup()
 except:
     print("GUI couldn't start")
     cleanup()
